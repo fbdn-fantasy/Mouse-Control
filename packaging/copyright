@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Mouse Control
+
+Files: *
+Copyright: 2026 Forbidden_Fantasy
+License: AGPL-3.0-only
+ This program is licensed under the GNU Affero General Public License,
+ version 3 only. The complete license and copyright notice are installed
+ alongside this file as LICENSE and NOTICE.

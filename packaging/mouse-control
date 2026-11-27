@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+import runpy
+import sys
+from pathlib import Path
+
+prefix = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(prefix / "share" / "mouse-control"))
+runpy.run_module("mouse_control", run_name="__main__", alter_sys=True)

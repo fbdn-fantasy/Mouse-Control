@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Build the RPM, DEB, executable and source archive without installing software.
+set -euo pipefail
+umask 022
+export LC_ALL=C
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1795737600}"
+
+root=$(cd -- "$(dirname -- "$0")/.." && pwd)
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+stage=$work/stage
+rpm_work=$work/rpmbuild
+app_id=io.github.mousecontrol.MouseControl
+version=$(awk '$1 == "Version:" {print $2}' "$root/packaging/mouse-control.spec")
+release=$(awk '$1 == "Release:" {print $2}' "$root/packaging/mouse-control.spec")
+bundle=Mouse-Control-V$version
+test -s "$root/LICENSE" && test -s "$root/NOTICE"
+
+for file in __init__.py __main__.py app.py hardware.py profiles.py style.css; do
+    if [[ ! -s "$root/mouse_control/$file" ]]; then
+        echo "Missing application file: mouse_control/$file" >&2
+        exit 1
+    fi
+done
+test "$(cd "$root" && python3 -B -c 'import mouse_control; print(mouse_control.__version__)')" = "$version"
+desktop-file-validate "$root/packaging/$app_id.desktop"
+install -Dm755 "$root/packaging/mouse-control" "$stage/usr/bin/mouse-control"
+install -Dm644 "$root/packaging/70-mouse-control.rules" "$stage/usr/lib/udev/rules.d/70-mouse-control.rules"
+helper=$stage/usr/lib/udev/mouse-control-access
+model_ids=$(cd "$root" && python3 -B -c 'from mouse_control.catalog import CATALOG; print(" ".join(sorted({pid for group in CATALOG.values() for ids in group.values() for pid in ids.split()} | {"c53f"})))')
+sed "s/@MODEL_IDS@/$model_ids/" "$root/packaging/mouse-control-access" >"$helper"
+chmod 755 "$helper"
+install -Dm644 "$root/packaging/$app_id.desktop" "$stage/usr/share/applications/$app_id.desktop"
+install -Dm644 "$root/mouse_control/$app_id.svg" "$stage/usr/share/icons/hicolor/scalable/apps/$app_id.svg"
+doc=$stage/usr/share/doc/mouse-control
+install -dm755 "$doc"
+install -m644 "$root/packaging/copyright" "$root/LICENSE" "$root/NOTICE" "$doc/"
+install -m644 "$root/README.md" "$root/COMPATIBILITY.md" "$doc/"
+app_dir=$stage/usr/share/mouse-control/mouse_control
+mkdir -p "$app_dir"
+tar -C "$root/mouse_control" --exclude=__pycache__ --exclude='*.py[co]' -cf - . | tar -C "$app_dir" -xf -
+find "$stage" -type f ! -path "$stage/usr/bin/mouse-control" ! -path "$helper" -exec chmod 644 {} +
+find "$stage" -type d -exec chmod 755 {} +
+find "$stage" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
+
+mkdir -p "$rpm_work/SOURCES"
+tar -C "$stage" --sort=name --owner=0 --group=0 --numeric-owner -cf \
+    "$rpm_work/SOURCES/mouse-control-$version-payload.tar" usr
+rpmbuild -bb --quiet --define "_topdir $rpm_work" --define "_tmppath $work" \
+    --define "_buildhost localhost" --define "source_date_epoch_from_changelog 0" \
+    --define "use_source_date_epoch_as_buildtime 1" --define "clamp_mtime_to_source_date_epoch 1" \
+    "$root/packaging/mouse-control.spec"
+rpm_file=$rpm_work/RPMS/noarch/mouse-control-$version-$release.noarch.rpm
+rpm -K --nosignature "$rpm_file"
+
+install -Dm644 "$root/packaging/control" "$stage/DEBIAN/control"
+deb_file=$work/mouse-control_${version}-${release}_all.deb
+dpkg-deb --root-owner-group -Zxz --build "$stage" "$deb_file"
+test "$(dpkg-deb -f "$deb_file" Version)" = "$version-$release"
+
+mkdir -p "$work/verify-rpm"
+rpm2cpio "$rpm_file" | (cd "$work/verify-rpm" && cpio -idm --quiet)
+dpkg-deb --extract "$deb_file" "$work/verify-deb"
+for unpacked in "$work/verify-rpm" "$work/verify-deb"; do
+    diff -qr "$stage/usr" "$unpacked/usr"
+    PYTHONDONTWRITEBYTECODE=1 "$unpacked/usr/bin/mouse-control" --help >/dev/null
+done
+cc -std=c11 -Wall -Wextra -Werror -O2 -s -o "$work/$bundle" "$root/packaging/linux-launcher.c"
+python3 "$root/scripts/build-packages-archives.py" "$root" "$work" "$version"
+"$work/$bundle" --help >/dev/null
+
+mkdir -p "$work/tar/$bundle"
+install -m755 "$work/$bundle" "$work/tar/$bundle/"
+install -m755 "$helper" "$work/tar/$bundle/"
+install -m644 "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/COMPATIBILITY.md" \
+    "$root/packaging/70-mouse-control.rules" "$root/mouse_control/$app_id.svg" "$work/tar/$bundle/"
+tar -C "$work/tar" --mtime="@$SOURCE_DATE_EPOCH" --sort=name --owner=0 --group=0 \
+    --numeric-owner -cf - "$bundle" | gzip -n -9 >"$work/$bundle.tar.gz"
+tar -tzf "$work/$bundle.tar.gz" >/dev/null
+
+mkdir -p "$root/dist"
+install -m644 "$rpm_file" "$deb_file" "$work/mouse-control-$version-source.zip" "$work/$bundle.tar.gz" "$root/dist/"
+install -m755 "$work/$bundle" "$root/dist/"

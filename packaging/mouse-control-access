@@ -1,0 +1,97 @@
+#!/usr/bin/python3 -I
+"""Approve one catalogued device node for desktop access; read only its sysfs metadata."""
+
+import re
+import struct
+import sys
+from pathlib import Path
+
+# The build expands this list from the application's retail catalog.
+PRODUCTS = frozenset("@MODEL_IDS@".split())
+PROFILE_REPORT = {"c246": 34, "c24a": 153}
+
+
+def protocol_endpoint(descriptor, product):
+    # Track HID global items, including nested scopes. No input reports are read.
+    ident = page = bits = count = 0
+    stack = []
+    features = {}
+    outputs = {}
+    pos = 0
+    while pos < len(descriptor):
+        prefix = descriptor[pos]
+        if prefix == 0xFE:
+            if pos + 2 >= len(descriptor):
+                return False
+            pos += 3 + descriptor[pos + 1]
+            if pos > len(descriptor):
+                return False
+            continue
+        size = (0, 1, 2, 4)[prefix & 3]
+        end = pos + 1 + size
+        if end > len(descriptor):
+            return False
+        value = int.from_bytes(descriptor[pos+1:end], "little")
+        tag = prefix & 0xFC
+        pos = end
+        if tag == 0x04:
+            page = value
+        elif tag == 0x74:
+            bits = value
+        elif tag == 0x84:
+            ident = value
+        elif tag == 0x94:
+            count = value
+        elif tag == 0xA4:
+            stack.append((ident, page, bits, count))
+        elif tag == 0xB4:
+            if not stack:
+                return False
+            ident, page, bits, count = stack.pop()
+        elif tag == 0xB0:
+            features[ident] = features.get(ident, 0) + count * bits
+        elif tag == 0x90 and page >= 0xFF00:
+            outputs[ident] = outputs.get(ident, 0) + count * bits
+    if product in PROFILE_REPORT:
+        return features.get(0xF0) == 24 and all(features.get(i) == PROFILE_REPORT[product] * 8
+                                                 for i in (0xF3, 0xF4, 0xF5))
+    if product in ("c245", "c24c"):
+        return features.get(0x8E) == 8
+    return outputs.get(0x11) == 19*8 or outputs.get(0x10) == 6*8
+
+
+def bitmap(path):
+    result = 0
+    word_bits = 8 * struct.calcsize("L")
+    for word in path.read_text().split():
+        result = result << word_bits | int(word, 16)
+    return result
+
+
+def allow(name, sysclass=Path("/sys/class")):
+    if re.fullmatch(r"event[0-9]+", name):
+        node = sysclass / "input" / name / "device"
+        if (node / "id/vendor").read_text().strip().lower() != "046d":
+            return False
+        if (node / "id/product").read_text().strip().lower() not in PRODUCTS:
+            return False
+        keys = bitmap(node / "capabilities/key")
+        mouse_keys = 0xFFFF << 0x110
+        return bool(keys & (1 << 0x110)) and not (keys & ~mouse_keys) and bitmap(node / "capabilities/rel") & 3 == 3
+    if not re.fullmatch(r"hidraw[0-9]+", name):
+        return False
+    node = sysclass / "hidraw" / name / "device"
+    props = dict(line.split("=", 1) for line in (node / "uevent").read_text().splitlines() if "=" in line)
+    bus, vendor, product_id = (int(value, 16) for value in props["HID_ID"].split(":"))
+    product = f"{product_id:04x}"
+    if bus not in (3, 5) or vendor != 0x046D or product not in PRODUCTS:
+        return False
+    return protocol_endpoint((node / "report_descriptor").read_bytes(), product)
+
+
+if __name__ == "__main__":
+    try:
+        approved = len(sys.argv) == 2 and allow(sys.argv[1])
+    except (OSError, ValueError, KeyError):
+        approved = False
+    sys.exit(0 if approved else 1)

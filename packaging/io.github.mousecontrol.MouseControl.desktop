@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mouse Control
+Comment=Monitor live DPI and edit onboard mouse settings
+Exec=mouse-control
+Icon=io.github.mousecontrol.MouseControl
+StartupWMClass=io.github.mousecontrol.MouseControl
+Categories=Settings;HardwareSettings;
+Keywords=Logitech;Mouse;DPI;Sensitivity;
+Terminal=false
+StartupNotify=true

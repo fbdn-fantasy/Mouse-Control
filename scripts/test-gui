@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd -- "$(dirname -- "$0")/.."
+runtime=$(mktemp -d)
+export XDG_RUNTIME_DIR="$runtime"
+export XDG_CONFIG_HOME="$runtime/config"
+export GDK_BACKEND=broadway BROADWAY_DISPLAY=:12 GTK_A11Y=none MOUSE_CONTROL_GUI_TEST=1
+export GIO_USE_VFS=local GTK_USE_PORTAL=0 ADW_DISABLE_PORTAL=1
+gtk4-broadwayd --unixsocket "$runtime/http" :12 >"$runtime/display.log" 2>&1 &
+display_pid=$!
+trap 'kill "$display_pid" 2>/dev/null || true; wait "$display_pid" 2>/dev/null || true; rm -rf -- "$runtime"' EXIT
+for attempt in {1..100}; do
+    [[ -S "$runtime/broadway13.socket" ]] && break
+    sleep 0.05
+done
+dbus-run-session -- python3 -W ignore::DeprecationWarning -B -m unittest discover -s tests

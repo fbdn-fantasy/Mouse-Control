@@ -1,0 +1,11 @@
+Package: mouse-control
+Version: 1.0.0-1
+Architecture: all
+Maintainer: Mouse Control local build <local@localhost.invalid>
+Section: utils
+Priority: optional
+Depends: python3, python3-gi, python3-cairo, python3-gi-cairo, gir1.2-gtk-4.0, gir1.2-adw-1, udev
+Description: Native Logitech mouse controls
+ Inspect 71 Logitech mouse models in an interactive GTK application.
+ Depending on the mouse and connection, display live sensitivity, monitor
+ button presses, change DPI and polling rate, or edit onboard assignments.

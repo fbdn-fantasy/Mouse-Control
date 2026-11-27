@@ -1,0 +1,12 @@
+.mouse-control .title { font-size: 22px; font-weight: 700; }
+.mouse-control .section { font-size: 17px; font-weight: 700; }
+.mouse-control .subtle { opacity: 0.78; }
+.mouse-control .metric-panel { background: #bfe9d9; color: #15382f; border-radius: 18px; padding: 24px 28px; }
+.mouse-control .metric { font-size: 64px; font-weight: 800; font-feature-settings: "tnum"; }
+.mouse-control .metric-label { font-size: 16px; font-weight: 600; }
+.mouse-control .unit { font-size: 18px; font-weight: 600; }
+.mouse-control .editable-panel { background-color: alpha(currentColor, 0.06); border-radius: 14px; padding: 16px 20px; }
+.mouse-control .message { font-weight: 600; }
+.mouse-control .apply-action { background: #14644e; color: white; font-weight: 700; }
+.mouse-control .apply-action:disabled { background: alpha(currentColor, 0.12); color: inherit; }
+.mouse-control .workspace > flowboxchild { padding: 0; }

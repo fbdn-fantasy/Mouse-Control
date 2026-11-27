@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="base" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#273d53"/>
+      <stop offset="1" stop-color="#132033"/>
+    </linearGradient>
+    <linearGradient id="shell" x2="0.8" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#eff9ff"/>
+      <stop offset="1" stop-color="#a9c4d9"/>
+    </linearGradient>
+  </defs>
+  <rect x="7" y="8" width="114" height="113" rx="30" fill="#0f1929"/>
+  <rect x="7" y="5" width="114" height="112" rx="30" fill="url(#base)"/>
+  <g transform="rotate(12 64 61)">
+    <path d="M34 60c0-26 11-40 30-40s30 14 30 40v17c0 19-12 29-30 29S34 96 34 77Z" fill="#0d1927"/>
+    <path d="M34 56c0-26 11-40 30-40s30 14 30 40v17c0 19-12 29-30 29S34 92 34 73Z" fill="url(#shell)"/>
+    <path d="M64 16v12m0 18v7" stroke="#24435b" stroke-width="3"/>
+    <rect x="59" y="26" width="10" height="22" rx="5" fill="#194157"/>
+    <rect x="61" y="28" width="6" height="15" rx="3" fill="#39d5c4"/>
+    <path d="M47 74h8m-8 8h15m-15 8h22" fill="none" stroke="#147f80" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

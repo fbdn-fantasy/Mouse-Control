@@ -1,0 +1,8 @@
+# Only the selected desktop user receives access, and only to a catalogued
+# mouse's control interface or an event node containing mouse buttons alone.
+ACTION=="remove", GOTO="mouse_control_end"
+# The original MX518 and G400s require device-level USB vendor transfers.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="046d", ATTR{idProduct}=="c01e|c051|c24c", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNEL=="hidraw*", KERNELS=="0003:046D:*|0005:046D:*", PROGRAM=="mouse-control-access %k", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_MOUSE}=="1", ENV{ID_INPUT_KEYBOARD}!="1", ATTRS{id/vendor}=="046d", PROGRAM=="mouse-control-access %k", TAG+="uaccess"
+LABEL="mouse_control_end"
